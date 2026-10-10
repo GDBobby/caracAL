@@ -1,0 +1,14 @@
+{
+  "base_url": "https://adventure.land",
+  "session": "1111111111111111-abc123ABCabc123ABCabc",
+  "cull_versions": true,
+  "log_level": "info",
+  "characters": {
+    "Wizard": {
+      "realm": "EUI",
+      "plugin": "crabs",
+      "enabled": true,
+      "version": 0
+    }
+  }
+}

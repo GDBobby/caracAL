@@ -2,15 +2,19 @@
 #include "client_scripts.hpp"
 #include "config_util.hpp"
 #include "constants.hpp"
+#include "entity.hpp"
 #include "file_stored_key_values.hpp"
+#include "g_data.hpp"
 #include "game_files.hpp"
 #include "html_globals.hpp"
 #include "html_prelude.hpp"
 #include "ipc_storage.hpp"
 #include "json.hpp"
 #include "monitoring_util.hpp"
+#include "plugin_host.hpp"
 #include "realm_rtt.hpp"
 #include "realm_safe_clone.hpp"
+#include "socket_io.hpp"
 #include "test.hpp"
 
 #include <algorithm>
@@ -293,6 +297,47 @@ TEST(ipc_storage_roundtrip) {
   incoming["data"] = data;
   st.on_message(incoming);
   CHECK(st.get_item("k2") == std::optional<std::string>{"z"});
+}
+
+TEST(socket_io_event_roundtrip) {
+  Json data = Json::object();
+  data["id"] = "m1";
+  auto enc = caracal::encode_socket_event("attack", data);
+  CHECK(enc.starts_with("42"));
+  auto pkt = caracal::parse_engine_packet(enc);
+  CHECK(pkt.has_value());
+  CHECK(pkt->event == "attack");
+  CHECK(pkt->data["id"].as_string() == "m1");
+}
+
+TEST(entity_distance_and_json) {
+  CHECK(caracal::simple_distance(0, 0, 3, 4) == 5);
+  auto e = caracal::entity_from_json(Json::parse(R"({"id":"a","type":"crab","x":1,"y":2,"hp":10})"));
+  CHECK(e.id == "a");
+  CHECK(e.type == "crab");
+  CHECK(e.x == 1);
+}
+
+TEST(data_js_parse) {
+  auto g = caracal::try_parse_data_js("var G={\"version\":1,\"maps\":{}};");
+  CHECK(g["version"].as_number() == 1);
+  CHECK(g["maps"].is_object());
+}
+
+TEST(plugin_load_and_tick) {
+#ifdef CARACAL_TEST_PLUGIN
+  const char* path = CARACAL_TEST_PLUGIN;
+  if (!fs::exists(path)) return;
+  caracal::PluginHost host;
+  CaracalApi api{};
+  api.abi = CARACAL_PLUGIN_ABI;
+  host.bind(api);
+  host.load(path);
+  CHECK(host.loaded());
+  host.on_tick(1);
+  host.unload();
+  CHECK(!host.loaded());
+#endif
 }
 
 int main() {
