@@ -1,0 +1,316 @@
+#include "character_thread.hpp"
+#include "client_scripts.hpp"
+#include "config_util.hpp"
+#include "constants.hpp"
+#include "file_stored_key_values.hpp"
+#include "game_files.hpp"
+#include "html_globals.hpp"
+#include "html_prelude.hpp"
+#include "ipc_storage.hpp"
+#include "json.hpp"
+#include "monitoring_util.hpp"
+#include "realm_rtt.hpp"
+#include "realm_safe_clone.hpp"
+#include "test.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <limits>
+#include <unistd.h>
+
+using caracal::Json;
+namespace fs = std::filesystem;
+
+TEST(json_roundtrip) {
+  auto j = Json::parse(R"({"a":1,"b":[true,null,"x"],"c":{"d":1.5}})");
+  CHECK(j["a"].as_number() == 1);
+  CHECK(j["b"].as_array().size() == 3);
+  CHECK(j["b"][0].as_bool());
+  CHECK(j["b"][1].is_null());
+  CHECK(j["c"]["d"].as_number() == 1.5);
+  auto again = Json::parse(j.dump());
+  CHECK(again["b"][2].as_string() == "x");
+}
+
+TEST(follows_latest_client) {
+  CHECK(caracal::game_files::follows_latest_client(std::nullopt));
+  CHECK(caracal::game_files::follows_latest_client_any(Json(nullptr)));
+  CHECK(caracal::game_files::follows_latest_client_any(Json(0)));
+  CHECK(caracal::game_files::follows_latest_client_any(Json("0")));
+  CHECK(caracal::game_files::follows_latest_client_any(Json("")));
+  CHECK(!caracal::game_files::follows_latest_client_any(Json(5158)));
+  CHECK(!caracal::game_files::follows_latest_client_any(Json("5158")));
+  CHECK(!caracal::game_files::follows_latest_client_any(Json("halflife3")));
+}
+
+TEST(game_files_fallback) {
+  auto files = caracal::game_files::get_game_files_fallback();
+  int html = -1, merrit = -1;
+  for (int i = 0; i < static_cast<int>(files.size()); ++i) {
+    if (files[i] == "/js/html.js") html = i;
+    if (files[i] == "/js/merrit_stand_notice.js") merrit = i;
+  }
+  CHECK(html >= 0);
+  CHECK(merrit >= 0);
+  CHECK(merrit > html);
+  auto runner = caracal::game_files::get_runner_files_fallback();
+  CHECK(runner.size() == 4);
+  CHECK(runner[0] == "/js/old_common_functions.js");
+  CHECK(runner[3] == "/js/runner_compat.js");
+  CHECK(caracal::game_files::get_game_files() == files);
+  CHECK(caracal::game_files::get_runner_files() == runner);
+}
+
+static const char* INDEX_FIXTURE = R"(
+<script src="/js/pixi/4.8.2-roundpixels/pixi.min.js"></script>
+<script src="/js/pixi-layers/0.1.7.2/pixi-layers.js"></script>
+<script src="/js/socket.io/4.2.0/socket.io.min.js"></script>
+<script src="/js/jquery/jquery-3.2.0.min.js"></script>
+<script src="/js/howler/2.0.13/howler.min.js"></script>
+<script src="/js/libraries/combined.js?v=4"></script>
+<script src="/js/codemirror/5.65.1/codemirror.js"></script>
+<script src="/js/common_functions.js?v=8507"></script>
+<script src="/js/old_common_functions.js?v=8507"></script>
+<script src="/js/functions.js?v=8507"></script>
+<script src="/js/game.js?v=8507"></script>
+<script src="/js/html.js?v=8507"></script>
+<script src="/js/merrit_stand_notice.js?v=8507"></script>
+<script src="/js/steam_news.js?v=8507"></script>
+<script src="/js/payments.js?v=8507"></script>
+<script src="/js/keyboard.js?v=8507"></script>
+<script src="/data.js?v=8507"></script>
+<script src="/js/npc_obstruction_hint.js?v=8507"></script>
+<script src="/js/ios-drag-drop.js"></script>
+)";
+
+static const char* RUNNER_FIXTURE = R"(
+<script src="/js/jquery/jquery-3.2.0.min.js"></script>
+<script src="/js/common_functions.js?v=8507"></script>
+<script src="/js/old_common_functions.js?v=8507"></script>
+<script src="/js/runner_functions.js?v=8507"></script>
+<script src="/js/runner_compat.js?v=8507"></script>
+)";
+
+TEST(client_scripts_extract) {
+  auto srcs = caracal::client_scripts::extract_script_srcs(
+      R"(<script src="/js/game.js?v=9"></script>)");
+  CHECK(srcs.size() == 1);
+  CHECK(srcs[0] == "/js/game.js");
+}
+
+TEST(client_scripts_index) {
+  auto files = caracal::client_scripts::resolve_game_files_from_index_html(INDEX_FIXTURE);
+  CHECK(files[0] == "/js/pixi/fake/pixi.min.js");
+  auto has = [&](const char* s) {
+    return std::find(files.begin(), files.end(), s) != files.end();
+  };
+  CHECK(has("/js/libraries/combined.js"));
+  CHECK(has("/js/codemirror/fake/codemirror.js"));
+  CHECK(has("/js/merrit_stand_notice.js"));
+  CHECK(has("/js/steam_news.js"));
+  CHECK(has("/js/npc_obstruction_hint.js"));
+  CHECK(has("/data.js"));
+  CHECK(!has("/js/howler/2.0.13/howler.min.js"));
+  CHECK(!has("/js/ios-drag-drop.js"));
+  for (auto& f : files) CHECK(f.find("socket.io") == std::string::npos);
+  auto html = std::find(files.begin(), files.end(), "/js/html.js");
+  auto merrit = std::find(files.begin(), files.end(), "/js/merrit_stand_notice.js");
+  CHECK(html < merrit);
+}
+
+TEST(client_scripts_runner) {
+  auto files =
+      caracal::client_scripts::resolve_runner_files_from_runner_html(RUNNER_FIXTURE);
+  CHECK(files.size() == 4);
+  CHECK(files[0] == "/js/common_functions.js");
+  CHECK(files[1] == "/js/old_common_functions.js");
+  CHECK(files[2] == "/js/runner_functions.js");
+  CHECK(files[3] == "/js/runner_compat.js");
+}
+
+TEST(html_globals_extract) {
+  const char* fixture = R"(
+<html><body>
+<script>
+	var inside="login";
+	var proximity_guides='1';
+	var last_deploy="[30/08/26]";
+	var X={};
+	function payment_logic(){};
+	if(is_electron) { electron_init(); }
+</script>
+</body></html>
+)";
+  auto script = caracal::extract_page_globals(fixture);
+  CHECK(script.find("var inside=\"login\"") != std::string::npos);
+  CHECK(script.find("proximity_guides") != std::string::npos);
+  CHECK(script.find("function payment_logic") != std::string::npos);
+  CHECK(script.find("is_electron") == std::string::npos);
+}
+
+TEST(html_prelude_has_proximity_guides) {
+  std::string s(caracal::html_prelude_source);
+  CHECK(s.find("proximity_guides") != std::string::npos);
+  CHECK(s.find("proximity_guides = false") != std::string::npos);
+}
+
+TEST(realm_safe_clone_overlay_present) {
+  std::string s(caracal::realm_safe_clone_overlay);
+  CHECK(s.find("__caracAL_realm_safe") != std::string::npos);
+  CHECK(s.find("circular_attribute[clone]") != std::string::npos);
+}
+
+TEST(parse_realm_host) {
+  auto a = caracal::parse_realm_host("wss://asia1.adventure.land/socket.io/");
+  CHECK(a.host == "asia1.adventure.land");
+  CHECK(!a.port);
+  auto b = caracal::parse_realm_host("eu1.adventure.land:2053");
+  CHECK(b.host == "eu1.adventure.land");
+  CHECK(b.port && *b.port == 2053);
+}
+
+TEST(load_deadline_from_rtt) {
+  using caracal::load_deadline_max_ms;
+  using caracal::load_deadline_min_ms;
+  using caracal::load_deadline_ms_from_rtt;
+  using caracal::probe_timeout_ms;
+  CHECK(load_deadline_ms_from_rtt(40) == load_deadline_min_ms + 12 * 40);
+  CHECK(load_deadline_ms_from_rtt(40) < load_deadline_min_ms + 1000);
+  int asia = load_deadline_ms_from_rtt(450);
+  CHECK(asia > load_deadline_min_ms);
+  CHECK(asia == load_deadline_min_ms + 12 * 450);
+  int mid = load_deadline_ms_from_rtt(800);
+  CHECK(mid > load_deadline_min_ms);
+  CHECK(mid < load_deadline_max_ms);
+  CHECK(mid == load_deadline_min_ms + 12 * 800);
+  CHECK(load_deadline_ms_from_rtt(10'000) == load_deadline_max_ms);
+  CHECK(load_deadline_ms_from_rtt(probe_timeout_ms) == load_deadline_max_ms);
+}
+
+TEST(should_refresh_client) {
+  CHECK(caracal::should_refresh_client_for_welcome(17139, 17175));
+  CHECK(!caracal::should_refresh_client_for_welcome(17175, 17139));
+  CHECK(!caracal::should_refresh_client_for_welcome(17175, 17175));
+  CHECK(!caracal::should_refresh_client_for_welcome(
+      std::numeric_limits<double>::quiet_NaN(), 17175));
+  CHECK(!caracal::should_refresh_client_for_welcome(
+      17175, std::numeric_limits<double>::quiet_NaN()));
+}
+
+TEST(config_ports) {
+  CHECK(caracal::config::privileged_port_ceiling() == 1024);
+  CHECK(caracal::config::needs_elevated_bind(80));
+  CHECK(!caracal::config::needs_elevated_bind(1924));
+  CHECK(caracal::config::default_web_panel_port() ==
+        caracal::constants::default_web_panel_port_unix);
+}
+
+TEST(login_success_auth) {
+  Json data = Json::array();
+  Json msg = Json::object();
+  msg["message"] = "Logged In!";
+  data.as_array().push_back(msg);
+  auto auth = caracal::config::login_success_auth(
+      data, {"foo=1", "auth=abc-def; Path=/", "other=x"});
+  CHECK(auth && *auth == "abc-def");
+  Json fail = Json::array();
+  Json m2 = Json::object();
+  m2["message"] = "Wrong Password";
+  fail.as_array().push_back(m2);
+  CHECK(!caracal::config::login_success_auth(fail, {"auth=abc-def"}));
+}
+
+TEST(monitoring_items) {
+  Json item = Json::object();
+  item["name"] = "hpot1";
+  item["q"] = 12;
+  auto slim = caracal::monitoring::slim_item_instance(item);
+  CHECK(slim && (*slim)["name"].as_string() == "hpot1");
+  CHECK((*slim)["q"].as_number() == 12);
+  Json items = Json::array();
+  items.as_array().push_back(item);
+  Json G = Json::object();
+  G["items"] = Json::object();
+  auto hp = caracal::monitoring::best_pot_instance(items, G, "hp");
+  CHECK(hp && (*hp)["name"].as_string() == "hpot1");
+  CHECK(caracal::monitoring::humanize_int(500, 1) == "500");
+  CHECK(caracal::monitoring::humanize_int(1500, 1) == "1.5k");
+}
+
+TEST(character_auth_reject) {
+  CHECK(caracal::character::is_auth_reject_text("authentication_failed"));
+  CHECK(caracal::character::is_auth_reject_payload(Json("Wrong passphrase")));
+  Json o = Json::object();
+  o["phrase"] = "characters_unconfirmed";
+  CHECK(caracal::character::is_auth_reject_payload(o));
+  CHECK(!caracal::character::is_auth_reject_payload(Json("hello")));
+  caracal::character::ProcessArgs a;
+  a.base_url = "https://adventure.land";
+  CHECK(caracal::character::server_address(a, "asia1.adventure.land") ==
+        "wss://asia1.adventure.land");
+  a.base_url = "http://localhost:8083";
+  CHECK(caracal::character::server_address(a, "127.0.0.1") == "ws://127.0.0.1");
+  CHECK(caracal::character::msg_process_ready()["type"].as_string() == "process_ready");
+}
+
+TEST(file_stored_key_values) {
+  auto dir = fs::temp_directory_path() / ("caracal-fskv-" + std::to_string(::getpid()));
+  fs::create_directories(dir);
+  auto main = (dir / "garage.jsonl").string();
+  auto repl = (dir / "garage.new.jsonl").string();
+  {
+    caracal::FileStoredKeyValues kv(main, repl, std::chrono::milliseconds(60'000));
+    kv.set("a", "1").set("b", "2");
+    CHECK(kv.get("a") == std::optional<std::string>{"1"});
+    kv.erase("b");
+    CHECK(!kv.get("b"));
+    kv.shutdown();
+  }
+  {
+    caracal::FileStoredKeyValues kv(main, repl, std::chrono::milliseconds(60'000));
+    CHECK(kv.get("a") == std::optional<std::string>{"1"});
+    CHECK(!kv.get("b"));
+    kv.close();
+  }
+  fs::remove_all(dir);
+}
+
+TEST(ipc_storage_roundtrip) {
+  Json last = Json(nullptr);
+  caracal::IpcStorage st("ls", [&](const Json& m) { last = m; });
+  CHECK(last["op"].as_string() == "init");
+  st.set_item("k", "v");
+  CHECK(st.get_item("k") == std::optional<std::string>{"v"});
+  CHECK(last["op"].as_string() == "set");
+  Json incoming = Json::object();
+  incoming["type"] = "stor";
+  incoming["ident"] = "ls";
+  incoming["op"] = "set";
+  Json data = Json::object();
+  data["k2"] = "z";
+  incoming["data"] = data;
+  st.on_message(incoming);
+  CHECK(st.get_item("k2") == std::optional<std::string>{"z"});
+}
+
+int main() {
+  int ran = 0;
+  for (auto& c : caracal::test::registry()) {
+    ++ran;
+    try {
+      c.fn();
+    } catch (const std::exception& e) {
+      ++caracal::test::failures;
+      std::cerr << "EXC " << c.name << ": " << e.what() << "\n";
+    }
+  }
+  if (caracal::test::failures) {
+    std::cerr << caracal::test::failures << " failure(s) in " << ran << " tests ("
+              << caracal::test::checks << " checks)\n";
+    return 1;
+  }
+  std::cout << ran << " tests, " << caracal::test::checks << " checks ok\n";
+  return 0;
+}

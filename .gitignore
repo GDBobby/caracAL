@@ -11,6 +11,7 @@
 /localStorage/*
 !/localStorage/README.md
 .idea/
+/build/
 /CODE/*
 !/CODE/README.md
 !/CODE/caracAL/

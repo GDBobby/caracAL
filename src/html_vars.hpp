@@ -1,3 +1,10 @@
+#pragma once
+
+#include <string_view>
+
+namespace caracal {
+
+inline constexpr std::string_view html_vars_source = R"AL(
 var inside = "login";
 var user_id = "",
   user_auth = "";
@@ -29,7 +36,7 @@ var VERSION = "";
 var platform = "web";
 var engine_mode = "";
 var no_graphics = "1";
-var border_mode = ""; // use after adding a new monster
+var border_mode = "";
 var no_html = "bot";
 var is_bot = "1";
 var is_cli = "",
@@ -43,7 +50,6 @@ var auto_reload = "auto",
   reload_times = "0",
   character_to_load = "",
   mstand_to_load = null;
-// It's pretty complicated but there are 2 persistence, auto login routines, the above one is the first, the below one is the second, second one uses the URL data
 var url_ip = "",
   url_port = "",
   url_character = "";
@@ -65,106 +71,39 @@ if (!is_sdk) {
 }
 
 X.servers = [
-  {
-    name: "I",
-    region: "EU",
-    players: 10,
-    key: "EUI",
-    port: 2053,
-    addr: "eu1.adventure.land",
-  },
-  {
-    name: "II",
-    region: "EU",
-    players: 23,
-    key: "EUII",
-    port: 2083,
-    addr: "eu2.adventure.land",
-  },
-  {
-    name: "PVP",
-    region: "EU",
-    players: 3,
-    key: "EUPVP",
-    port: 2087,
-    addr: "eupvp.adventure.land",
-  },
-  {
-    name: "I",
-    region: "US",
-    players: 18,
-    key: "USI",
-    port: 2053,
-    addr: "us1.adventure.land",
-  },
-  {
-    name: "II",
-    region: "US",
-    players: 10,
-    key: "USII",
-    port: 2083,
-    addr: "us2.adventure.land",
-  },
-  {
-    name: "III",
-    region: "US",
-    players: 51,
-    key: "USIII",
-    port: 2053,
-    addr: "us3.adventure.land",
-  },
-  {
-    name: "PVP",
-    region: "US",
-    players: 14,
-    key: "USPVP",
-    port: 2087,
-    addr: "uspvp.adventure.land",
-  },
-  {
-    name: "I",
-    region: "ASIA",
-    players: 12,
-    key: "ASIAI",
-    port: 2053,
-    addr: "asia1.adventure.land",
-  },
+  { name: "I", region: "EU", players: 10, key: "EUI", port: 2053, addr: "eu1.adventure.land" },
+  { name: "II", region: "EU", players: 23, key: "EUII", port: 2083, addr: "eu2.adventure.land" },
+  { name: "PVP", region: "EU", players: 3, key: "EUPVP", port: 2087, addr: "eupvp.adventure.land" },
+  { name: "I", region: "US", players: 18, key: "USI", port: 2053, addr: "us1.adventure.land" },
+  { name: "II", region: "US", players: 10, key: "USII", port: 2083, addr: "us2.adventure.land" },
+  { name: "III", region: "US", players: 51, key: "USIII", port: 2053, addr: "us3.adventure.land" },
+  { name: "PVP", region: "US", players: 14, key: "USPVP", port: 2087, addr: "uspvp.adventure.land" },
+  { name: "I", region: "ASIA", players: 12, key: "ASIAI", port: 2053, addr: "asia1.adventure.land" }
 ];
 X.characters = [];
 X.tutorial = { step: 0, completed: [] };
 X.unread = 0;
 X.codes = {};
 
-// Local/dev game client expects Monaco create_editor; caracAL headless has no Monaco.
 if (typeof create_editor !== "function") {
   create_editor = function create_editor_fake(replaceOrHost, options) {
     options = options || {};
     var value = (options && options.value) || "";
     var api = {
-      getValue: function () {
-        return value;
-      },
-      setValue: function (x) {
-        value = x == null ? "" : String(x);
-      },
+      getValue: function () { return value; },
+      setValue: function (x) { value = x == null ? "" : String(x); },
       focus: function () {},
       layout: function () {},
       refresh: function () {},
       clearHistory: function () {},
-      getWrapperElement: function () {
-        return { ALEditor: api, CodeMirror: api };
-      },
+      getWrapperElement: function () { return { ALEditor: api, CodeMirror: api }; },
       dispose: function () {},
       on: function () {},
-      getCursor: function () {
-        return { line: 0, ch: 0 };
-      },
+      getCursor: function () { return { line: 0, ch: 0 }; },
       findWordAt: function (c) {
         return { anchor: c || { line: 0, ch: 0 }, head: c || { line: 0, ch: 0 } };
       },
-      getRange: function () {
-        return "";
-      },
+      getRange: function () { return ""; }
     };
     if (typeof replaceOrHost === "function") {
       var host = document.createElement("div");
@@ -177,3 +116,6 @@ if (typeof create_editor !== "function") {
 }
 
 code_logic();
+)AL";
+
+}  // namespace caracal

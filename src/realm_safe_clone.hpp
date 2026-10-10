@@ -1,17 +1,12 @@
-/**
- * Adventure Land's clone() uses `instanceof Array` / `instanceof Object`.
- * Under caracAL (JSDOM window + vm.createContext) those checks fail for
- * ordinary object/array literals created in the VM — clone then throws
- * "type not supported". See docs/jsdom-vm-realm-clone.md.
- *
- * This overlay replaces clone after game/runner scripts load. It keeps AL's
- * seen/circular behaviour but detects arrays/dates/plain objects in a
- * realm-safe way so both VM literals and Node/JSON socket payloads clone.
- */
+#pragma once
 
-"use strict";
+#include <string_view>
 
-const OVERLAY_SOURCE = `
+namespace caracal {
+
+// Adventure Land clone() overlay for a JS game VM. Kept as source text because
+// the official client still evaluates JavaScript; this is data, not a host language.
+inline constexpr std::string_view realm_safe_clone_overlay = R"JS(
 (function () {
   function caracAL_tag(value) {
     return Object.prototype.toString.call(value);
@@ -26,7 +21,6 @@ const OVERLAY_SOURCE = `
     if (Array.isArray(value) || caracAL_is_date(value)) return false;
     var tag = caracAL_tag(value);
     if (tag === "[object Object]") return true;
-    // Null-prototype dictionaries (rare in AL; original clone threw on these).
     try {
       return Object.getPrototypeOf(value) === null;
     } catch (e) {
@@ -75,16 +69,6 @@ const OVERLAY_SOURCE = `
   clone.__caracAL_realm_safe = true;
   globalThis.clone = clone;
 })();
-`;
+)JS";
 
-/**
- * Replace Adventure Land clone() on a character/game vm context.
- * @param {object} context contextified JSDOM window
- */
-function apply_realm_safe_clone(context) {
-  const vm = require("vm");
-  vm.runInContext(OVERLAY_SOURCE + "\n//# sourceURL=caracAL://realm_safe_clone.js", context);
-}
-
-exports.apply_realm_safe_clone = apply_realm_safe_clone;
-exports.OVERLAY_SOURCE = OVERLAY_SOURCE;
+}  // namespace caracal
