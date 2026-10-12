@@ -13,7 +13,7 @@ Environment=CARACAL_SERVICE=OHYEAH
 Type=simple
 User=pi
 WorkingDirectory=$cur_dir
-ExecStart=$node_loc main.js
+ExecStart=$node_loc main.js #use ./build/caracal_headless
 Restart=always
 StandardOutput=null
 StandardError=null
