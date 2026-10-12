@@ -1,6 +1,6 @@
 #include "plugin_host.hpp"
 
-#include "log_utils.hpp"
+#include "Logger.h"
 
 #include <dlfcn.h>
 #include <fstream>
@@ -69,7 +69,7 @@ namespace caracal {
         if (plugin_->on_load) {
             plugin_->on_load(&api_);
         }
-        log().info("loaded plugin " + std::string(plugin_->name ? plugin_->name : path), Json::object());
+        Log::Normal("loaded plugin %s\n", plugin_->name ? plugin_->name : path.c_str());
     }
 
     void PluginHost::unload() {
@@ -99,7 +99,7 @@ namespace caracal {
         if (mt == mtime_ && sz == size_) {
             return false;
         }
-        log().info("reloading plugin " + src_path_);
+        Log::Normal("reloading plugin %s\n", src_path_.c_str());
         auto api = api_;
         unload();
         api_ = api;

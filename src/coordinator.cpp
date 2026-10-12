@@ -6,7 +6,7 @@
 #include "g_data.hpp"
 #include "game_files.hpp"
 #include "game_session.hpp"
-#include "log_utils.hpp"
+#include "Logger.h"
 #include "plugin_host.hpp"
 
 #include <algorithm>
@@ -30,7 +30,7 @@ namespace caracal {
                 auto path = game_files::locate_game_file(base_url, "/data.js", version);
                 return load_g_data(path);
             } catch (const std::exception& e) {
-                log().warn(std::string("G data unavailable: ") + e.what());
+                Log::Warning("G data unavailable: %s\n", e.what());
                 return Json(nullptr);
             }
         }
@@ -42,15 +42,15 @@ namespace caracal {
                 bool auth_fail = false;
                 session.on_auth_fail = [&](const std::string& reason) {
                     auth_fail = true;
-                    log().warn("auth_fail " + cfg.cname + " " + reason);
+                    Log::Warning("auth_fail %s %s\n", cfg.cname.c_str(), reason.c_str());
                 };
-                session.on_connected = [&] { log().info(cfg.cname + " in game"); };
+                session.on_connected = [&] { Log::Normal("%s in game\n", cfg.cname.c_str()); };
                 try {
                     session.start(cfg, g);
                     session.run_forever(&g_stop, &enabled);
                     session.stop();
                 } catch (const std::exception& e) {
-                    log().error(cfg.cname + " session error: " + e.what());
+                    Log::Error("%s session error: %s\n", cfg.cname.c_str(), e.what());
                     try {
                         session.stop();
                     } catch (...) {}
@@ -66,7 +66,7 @@ namespace caracal {
                 else {
                     strikes = 0;
                 }
-                log().warn("restarting " + cfg.cname + " in " + std::to_string(wait_ms / 1000) + "s");
+                Log::Warning("restarting %s in %ds\n", cfg.cname.c_str(), wait_ms / 1000);
                 auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(wait_ms);
                 while (!g_stop && enabled && std::chrono::steady_clock::now() < until) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -81,20 +81,19 @@ namespace caracal {
         std::signal(SIGTERM, on_sig);
 
         auto cfg = config::interactive(config_path);
-        init_logging(parse_log_level(cfg["log_level"].as_string_opt().value_or("info")));
         std::string base_url = cfg["base_url"].as_string_opt().value_or("https://adventure.land");
         std::string sess = cfg["session"].as_string_opt().value_or("");
         if (sess.empty()) {
-            log().error("config.session is empty");
+            Log::Error("config.session is empty\n");
             return 1;
         }
 
         int latest = 0;
         try {
             latest = game_files::ensure_latest(base_url);
-            log().info("game files version " + std::to_string(latest));
+            Log::Normal("game files version %d\n", latest);
         } catch (const std::exception& e) {
-            log().warn(std::string("ensure_latest failed: ") + e.what());
+            Log::Warning("ensure_latest failed: %s\n", e.what());
         }
 
         AccountInfo acc(base_url, sess);
@@ -102,12 +101,12 @@ namespace caracal {
         try {
             info = acc.update_info();
         } catch (const std::exception& e) {
-            log().error(std::string("account info: ") + e.what());
+            Log::Error("account info: %s\n", e.what());
             return 1;
         }
 
         if (!cfg["characters"].is_object()) {
-            log().error("config.characters missing");
+            Log::Error("config.characters missing\n");
             return 1;
         }
 
@@ -119,14 +118,18 @@ namespace caracal {
             }
             auto ch = acc.resolve_char(name);
             if (ch.is_null()) {
-                log().error("unknown character " + name);
+                Log::Error("unknown character %s\n", name.c_str());
                 continue;
             }
             std::string realm_key = block["realm"].as_string_opt().value_or("");
             auto realm = acc.resolve_realm(realm_key);
             if (realm.is_null() && info["servers"].is_array() && !info["servers"].as_array().empty()) {
                 realm = info["servers"][0];
-                log().warn("realm " + realm_key + " missing, fallback " + realm["key"].as_string_opt().value_or("?"));
+                Log::Warning(
+                    "realm %s missing, fallback %s\n",
+                    realm_key.c_str(),
+                    realm["key"].as_string_opt().value_or("?").c_str()
+                );
             }
             CharacterConnect cc;
             cc.base_url = base_url;
@@ -159,7 +162,7 @@ namespace caracal {
             flags.push_back(std::make_unique<std::atomic<bool>>(true));
             auto* en = flags.back().get();
             threads.emplace_back([cc, g, en] { run_one_character(cc, g, *en); });
-            log().info("started " + name + " plugin " + cc.plugin_path);
+            Log::Normal("started %s plugin %s\n", name.c_str(), cc.plugin_path.c_str());
         }
 
         while (!g_stop) {

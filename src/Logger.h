@@ -2,8 +2,7 @@
 
 #include <string_view>
 
-
-namespace EWE {
+namespace caracal {
 
     enum class LogType {
         None, //dont print anything directly to this
@@ -16,7 +15,8 @@ namespace EWE {
 
     struct Log {
 
-        inline static LogType Minimum = LogType::Sanity;
+        static constexpr LogType Minimum = LogType::Sanity;
+        inline static bool Enabled = true;
 
         static void Sanity(std::string_view fmt, ...);
         static void Normal(std::string_view fmt, ...);
@@ -25,6 +25,4 @@ namespace EWE {
         static void Error(std::string_view fmt, ...);
     };
 
-} //namespace EWE
-
-
+} // namespace caracal

@@ -1,7 +1,5 @@
 #include "g_data.hpp"
 
-#include "log_utils.hpp"
-
 #include <fstream>
 #include <regex>
 #include <sstream>

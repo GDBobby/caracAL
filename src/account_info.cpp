@@ -1,7 +1,7 @@
 #include "account_info.hpp"
 
 #include "http_client.hpp"
-#include "log_utils.hpp"
+#include "Logger.h"
 
 #include <stdexcept>
 
@@ -12,7 +12,7 @@ namespace caracal {
           session_(std::move(session)) {}
 
     Json AccountInfo::update_info() {
-        log().info("updating account info");
+        Log::Normal("updating account info\n");
         std::string url = base_url_;
         while (url.ends_with('/')) {
             url.pop_back();
@@ -35,7 +35,7 @@ namespace caracal {
         }
         std::size_t nserv = res["servers"].is_array() ? res["servers"].as_array().size() : 0;
         std::size_t nchar = res["characters"].is_array() ? res["characters"].as_array().size() : 0;
-        log().info("found " + std::to_string(nserv) + " servers and " + std::to_string(nchar) + " characters");
+        Log::Normal("found %zu servers and %zu characters\n", nserv, nchar);
         response_ = std::move(res);
         return response_;
     }

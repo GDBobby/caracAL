@@ -1,7 +1,5 @@
 #include "socket_io.hpp"
 
-#include "log_utils.hpp"
-
 #include <cctype>
 #include <stdexcept>
 

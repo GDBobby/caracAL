@@ -26,7 +26,6 @@ set(CARACAL_SOURCES
     src/html_globals.cpp
     src/http_client.cpp
     src/ipc_storage.cpp
-    src/log_utils.cpp
     src/monitoring_util.cpp
     src/pathing.cpp
     src/plugin_host.cpp

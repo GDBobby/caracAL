@@ -15,8 +15,7 @@
 #define GET_THREAD_ID() ((unsigned long)syscall(SYS_gettid))
 #endif
 
-namespace EWE {
-
+namespace caracal {
 
     namespace Colors {
         //color codes gist here
@@ -91,4 +90,5 @@ namespace EWE {
             //EWE_Debug_Breakpoint();
         }
     }
-}
+
+} // namespace caracal

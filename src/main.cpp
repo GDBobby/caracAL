@@ -1,7 +1,6 @@
 #include "config_util.hpp"
 #include "constants.hpp"
 #include "coordinator.hpp"
-#include "log_utils.hpp"
 
 #include <iostream>
 

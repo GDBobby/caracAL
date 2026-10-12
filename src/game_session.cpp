@@ -3,7 +3,6 @@
 #include "Logger.h"
 #include "character_thread.hpp"
 #include "http_client.hpp"
-#include "log_utils.hpp"
 #include "monitoring_util.hpp"
 #include "pathing.hpp"
 #include "realm_rtt.hpp"
@@ -157,13 +156,13 @@ namespace caracal {
                 Json o = Json::object();
                 o["num"] = slot;
                 s->io_.emit("equip", o);
-                EWE::Log::Debug("use %s equip slot=%d\n", kind.c_str(), slot);
+                Log::Debug("use %s equip slot=%d\n", kind.c_str(), slot);
             }
             else {
                 Json o = Json::object();
                 o["item"] = kind;
                 s->io_.emit("use", o);
-                EWE::Log::Debug("use %s regen (no pot in inventory)\n", kind.c_str());
+                Log::Debug("use %s regen (no pot in inventory)\n", kind.c_str());
             }
             if (kind == "hp") {
                 s->next_hp_ms_ = s->now_ms() + 2000;
@@ -211,7 +210,7 @@ namespace caracal {
         Json o = Json::object();
         o["id"] = json_id_value(id);
         s->io_.emit("attack", o);
-        EWE::Log::Debug("attack emit id=%s\n", id);
+        Log::Debug("attack emit id=%s\n", id);
         double freq = s->self_.frequency;
         double delay = 800;
         if (freq > 20 && freq < 5000) {
@@ -237,12 +236,12 @@ namespace caracal {
         if (simple_distance(self_.x, self_.y, tx, ty) < 1 || !box_ok) {
             auto u = unstuck_move(geo_, self_.x, self_.y, x, y);
             if (!u) {
-                EWE::Log::Debug("move none (%.1f,%.1f) want (%.1f,%.1f)\n", self_.x, self_.y, x, y);
+                Log::Debug("move none (%.1f,%.1f) want (%.1f,%.1f)\n", self_.x, self_.y, x, y);
                 return false;
             }
             tx = u->first;
             ty = u->second;
-            EWE::Log::Debug("move unstuck (%.1f,%.1f)->(%.1f,%.1f) want (%.1f,%.1f)\n", self_.x, self_.y, tx, ty, x, y);
+            Log::Debug("move unstuck (%.1f,%.1f)->(%.1f,%.1f) want (%.1f,%.1f)\n", self_.x, self_.y, tx, ty, x, y);
         }
         Json o = Json::object();
         o["x"] = self_.x;
@@ -251,7 +250,7 @@ namespace caracal {
         o["going_y"] = ty;
         o["m"] = map_m_;
         io_.emit("move", o);
-        EWE::Log::Debug(
+        Log::Debug(
             "move emit (%.1f,%.1f)->(%.1f,%.1f) want (%.1f,%.1f) m=%d\n",
             self_.x,
             self_.y,
@@ -299,17 +298,19 @@ namespace caracal {
                     geo_ = map_geo_from_json(Json::parse(r.body), map_);
                 }
             } catch (const std::exception& e) {
-                log().debug(std::string("map json: ") + e.what());
+                Log::Debug("map json: %s\n", e.what());
             }
         }
         if (geo_.ok) {
-            log().info(
-                "loaded map geometry " + map_ + " x_lines=" + std::to_string(geo_.x_lines.size()) +
-                " y_lines=" + std::to_string(geo_.y_lines.size())
+            Log::Normal(
+                "loaded map geometry %s x_lines=%zu y_lines=%zu\n",
+                map_.c_str(),
+                geo_.x_lines.size(),
+                geo_.y_lines.size()
             );
         }
         else {
-            log().warn("no wall data for map " + map_ + "; refusing long unclamped moves");
+            Log::Warning("no wall data for map %s; refusing long unclamped moves\n", map_.c_str());
         }
     }
 
@@ -328,7 +329,7 @@ namespace caracal {
         o["going_y"] = self_.y;
         o["m"] = map_m_;
         io_.emit("move", o);
-        EWE::Log::Debug("stop in place (%.1f,%.1f)\n", self_.x, self_.y);
+        Log::Debug("stop in place (%.1f,%.1f)\n", self_.x, self_.y);
     }
 
     bool GameSession::resolve_named_dest(const char* dest, double& x, double& y) {
@@ -363,7 +364,7 @@ namespace caracal {
         ensure_geo();
         double now = now_ms();
         if (smart_.active && simple_distance(x, y, smart_.dest_x, smart_.dest_y) < 80) {
-            EWE::Log::Debug(
+            Log::Debug(
                 "smart keep dest (%.1f,%.1f)->(%.1f,%.1f) plot=%zu i=%zu\n",
                 self_.x,
                 self_.y,
@@ -381,7 +382,7 @@ namespace caracal {
             return;
         }
         if (now < smart_.fail_until_ms && simple_distance(x, y, smart_.dest_x, smart_.dest_y) < 80) {
-            EWE::Log::Debug("smart cooldown no-path to (%.1f,%.1f)\n", x, y);
+            Log::Debug("smart cooldown no-path to (%.1f,%.1f)\n", x, y);
             return;
         }
         smart_.dest_x = x;
@@ -391,7 +392,7 @@ namespace caracal {
         smart_.active = !smart_.plot.empty();
         if (!smart_.active) {
             smart_.fail_until_ms = now + 1000;
-            EWE::Log::Warning(
+            Log::Warning(
                 "smart no path (%.1f,%.1f)->(%.1f,%.1f) geo=%d lines=%zu\n",
                 self_.x,
                 self_.y,
@@ -406,7 +407,7 @@ namespace caracal {
         smart_.fail_until_ms = 0;
         bool stepped = false;
         for (; smart_.i < smart_.plot.size(); ++smart_.i) {
-            EWE::Log::Debug(
+            Log::Debug(
                 "smart path n=%zu i=%zu (%.1f,%.1f)->(%.1f,%.1f) wp=(%.1f,%.1f)\n",
                 smart_.plot.size(),
                 smart_.i,
@@ -423,7 +424,7 @@ namespace caracal {
             }
         }
         if (!stepped) {
-            EWE::Log::Warning("smart first step refused, stopping\n");
+            Log::Warning("smart first step refused, stopping\n");
             smart_.active = false;
             stop_in_place();
         }
@@ -438,7 +439,7 @@ namespace caracal {
             return;
         }
         if (simple_distance(self_.x, self_.y, smart_.dest_x, smart_.dest_y) < 12) {
-            EWE::Log::Debug("smart arrived (%.1f,%.1f)\n", self_.x, self_.y);
+            Log::Debug("smart arrived (%.1f,%.1f)\n", self_.x, self_.y);
             clear_smart();
             return;
         }
@@ -454,7 +455,7 @@ namespace caracal {
             smart_.plot = find_path(geo_, self_.x, self_.y, smart_.dest_x, smart_.dest_y);
             smart_.i = 0;
             if (smart_.plot.empty()) {
-                EWE::Log::Warning(
+                Log::Warning(
                     "smart replan failed at (%.1f,%.1f) dest=(%.1f,%.1f)\n",
                     self_.x,
                     self_.y,
@@ -469,7 +470,7 @@ namespace caracal {
         }
         auto [wx, wy] = smart_.plot[smart_.i];
         if (!can_move(geo_, self_.x, self_.y, wx, wy)) {
-            EWE::Log::Debug("smart waypoint blocked (%.1f,%.1f)->(%.1f,%.1f) replan\n", self_.x, self_.y, wx, wy);
+            Log::Debug("smart waypoint blocked (%.1f,%.1f)->(%.1f,%.1f) replan\n", self_.x, self_.y, wx, wy);
             smart_.plot = find_path(geo_, self_.x, self_.y, smart_.dest_x, smart_.dest_y);
             smart_.i = 0;
             if (smart_.plot.empty()) {
@@ -482,7 +483,7 @@ namespace caracal {
             wy = smart_.plot[0].second;
         }
         if (!self_.moving || simple_distance(self_.going_x, self_.going_y, wx, wy) > 4) {
-            EWE::Log::Debug("smart follow i=%zu/%zu wp=(%.1f,%.1f)\n", smart_.i, smart_.plot.size(), wx, wy);
+            Log::Debug("smart follow i=%zu/%zu wp=(%.1f,%.1f)\n", smart_.i, smart_.plot.size(), wx, wy);
             safe_move_to(wx, wy, false);
         }
     }
@@ -495,14 +496,14 @@ namespace caracal {
         auto* s = static_cast<GameSession*>(ctx);
         double x = 0, y = 0;
         if (!s->resolve_named_dest(dest, x, y)) {
-            EWE::Log::Warning("smart_move no dest for %s\n", dest ? dest : "");
+            Log::Warning("smart_move no dest for %s\n", dest ? dest : "");
             return;
         }
         s->start_smart(x, y);
     }
 
     void GameSession::api_log(void* /*ctx*/, const char* msg) {
-        log().info(msg ? msg : "");
+        Log::Normal("%s\n", msg ? msg : "");
     }
 
     void GameSession::fill_view(CaracalEntity& out, const Entity& e) {
@@ -783,7 +784,7 @@ namespace caracal {
             return;
         }
         if (p.event == "game_log" || p.event == "game_error" || p.event == "game_response") {
-            EWE::Log::Debug("%s %s\n", p.event.c_str(), p.data.dump().c_str());
+            Log::Debug("%s %s\n", p.event.c_str(), p.data.dump().c_str());
             if (character::is_auth_reject_payload(p.data)) {
                 auth_fail_ = true;
                 if (on_auth_fail) {
@@ -807,7 +808,7 @@ namespace caracal {
         auth_emitted_ = false;
         in_game_ = false;
         auto url = ws_url();
-        log().info("connecting " + url);
+        Log::Normal("connecting %s\n", url.c_str());
         io_.connect(url);
         emit_loaded_and_auth();
 
@@ -860,7 +861,7 @@ namespace caracal {
                     handle_event(*pkt);
                 }
             } catch (const std::exception& e) {
-                log().error(std::string("session: ") + e.what());
+                Log::Error("session: %s\n", e.what());
                 break;
             }
             double now = clock_ms();
@@ -873,7 +874,7 @@ namespace caracal {
                 try {
                     plugin_.reload_if_changed();
                 } catch (const std::exception& e) {
-                    log().warn(std::string("plugin reload failed: ") + e.what());
+                    Log::Warning("plugin reload failed: %s\n", e.what());
                 }
                 next_reload = now + 1000;
             }

@@ -1,6 +1,6 @@
 #include "stream_multiplexer.hpp"
 
-#include "log_utils.hpp"
+#include "Logger.h"
 
 #include <cerrno>
 #include <cstring>
@@ -182,7 +182,7 @@ namespace caracal::stream_multiplexer {
         std::thread t_err([err = err_pipe[0], dests] { pump_no_backpressure(err, dests); });
         t_out.detach();
         t_err.detach();
-        log().info("log pipes attached to " + module_path);
+        Log::Normal("log pipes attached to %s\n", module_path.c_str());
         return pid;
     }
 

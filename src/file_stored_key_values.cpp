@@ -1,7 +1,7 @@
 #include "file_stored_key_values.hpp"
 
 #include "json.hpp"
-#include "log_utils.hpp"
+#include "Logger.h"
 
 #include <cctype>
 #include <fcntl.h>
@@ -89,9 +89,10 @@ namespace caracal {
                     backend_[it->first] = it->second.dump();
                 }
             } catch (const std::exception& err) {
-                log().error(
-                    "FileStoredKeyValues: skipping corrupt line (" + std::string(err.what()) +
-                    "): " + trimmed.substr(0, 120)
+                Log::Error(
+                    "FileStoredKeyValues: skipping corrupt line (%s): %s\n",
+                    err.what(),
+                    trimmed.substr(0, 120).c_str()
                 );
             }
         }

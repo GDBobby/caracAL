@@ -4,7 +4,7 @@
 #include "html_globals.hpp"
 #include "html_prelude.hpp"
 #include "http_client.hpp"
-#include "log_utils.hpp"
+#include "Logger.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -48,7 +48,11 @@ namespace caracal::game_files {
                 }
                 return raw;
             } catch (...) {
-                log().warn("invalid client_scripts.json for version " + std::string(version));
+                Log::Warning(
+                    "invalid client_scripts.json for version %.*s\n",
+                    static_cast<int>(version.size()),
+                    version.data()
+                );
                 return std::nullopt;
             }
         }
@@ -212,8 +216,10 @@ namespace caracal::game_files {
         if (file_exists(cached)) {
             return cached;
         }
-        log().warn(
-            "html_globals.js missing for version " + std::string(version) + "; falling back to embedded html_prelude"
+        Log::Warning(
+            "html_globals.js missing for version %.*s; falling back to embedded html_prelude\n",
+            static_cast<int>(version.size()),
+            version.data()
         );
         return {};
     }
@@ -264,10 +270,10 @@ namespace caracal::game_files {
                 continue;
             }
             try {
-                log().info("culling version " + std::to_string(all[i]));
+                Log::Normal("culling version %d\n", all[i]);
                 fs::remove_all("./game_files/" + hostname(base_url) + "/" + std::to_string(all[i]));
             } catch (const std::exception& e) {
-                log().warn(std::string("failed to cull version ") + std::to_string(all[i]) + " " + e.what());
+                Log::Warning("failed to cull version %d %s\n", all[i], e.what());
             }
         }
     }
@@ -304,10 +310,10 @@ namespace caracal::game_files {
             }
         }
         if (missing.empty()) {
-            log().info("all files for version " + ver + " are present");
+            Log::Normal("all files for version %s are present\n", ver.c_str());
         }
         else {
-            log().info("downloading game files for version " + ver);
+            Log::Normal("downloading game files for version %s\n", ver.c_str());
             for (auto& itm : missing) {
                 download_file(official_download_url(base_url, itm), locate_game_file(base_url, itm, ver));
             }

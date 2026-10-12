@@ -3,7 +3,7 @@
 #include "account_info.hpp"
 #include "constants.hpp"
 #include "http_client.hpp"
-#include "log_utils.hpp"
+#include "Logger.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -213,10 +213,10 @@ namespace caracal::config {
 
     Json interactive(const std::string& config_path) {
         if (config_exists(config_path)) {
-            log().info("config file exists. lets get started!");
+            Log::Normal("config file exists. lets get started!\n");
             return load_config(config_path);
         }
-        log().warn("config file does not exist. lets fix that!");
+        Log::Warning("config file does not exist. lets fix that!\n");
         std::cout << "What servers are you playing on?\n  1) Official (Recommended)\n  2) Custom\n";
         std::string choice = prompt_line("> ");
         std::string base_url = "https://adventure.land";
@@ -230,7 +230,7 @@ namespace caracal::config {
             auto password = prompt_line("Password: ", true);
             session = make_auth(base_url, email, password);
             if (!session) {
-                log().warn("email or password seems to be wrong.");
+                Log::Warning("email or password seems to be wrong.\n");
             }
         }
         AccountInfo acc(base_url, *session);
@@ -312,7 +312,7 @@ namespace caracal::config {
         }
         auto conf = make_config(base_url, *session, characters, ts, bwi, mini, port, title);
         write_config(config_path, conf);
-        log().info("config file created. lets get started!");
+        Log::Normal("config file created. lets get started!\n");
         return conf;
     }
 
