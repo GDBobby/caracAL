@@ -58,6 +58,8 @@ namespace caracal {
         static void api_log(void* ctx, const char* msg);
 
         void handle_event(const SocketIoPacket& p);
+        void apply_skill_timeout(const std::string& name, std::optional<double> ms);
+        bool skill_off_cooldown(const std::string& name) const;
         void merge_entities(const Json& data, bool reset);
         void apply_self(const Json& data);
         void emit_loaded_and_auth();
@@ -103,6 +105,7 @@ namespace caracal {
         bool auth_fail_ = false;
         double next_hp_ms_ = 0;
         double next_mp_ms_ = 0;
+        std::unordered_map<std::string, double> skill_ready_ms_;
         CaracalEntity self_view_{};
         CaracalEntity nearest_view_{};
         std::string self_id_store_;

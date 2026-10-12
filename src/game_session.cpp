@@ -114,7 +114,7 @@ namespace caracal {
         if (k == "mp" || k == "use_mp") {
             return now >= s->next_mp_ms_;
         }
-        return 1;
+        return s->skill_off_cooldown(k);
     }
 
     int GameSession::api_can_move_to(void* ctx, double x, double y) {
@@ -170,6 +170,25 @@ namespace caracal {
             else {
                 s->next_mp_ms_ = s->now_ms() + 2000;
             }
+            return;
+        }
+        const Json& skills = s->g_["skills"];
+        if (skills.is_object() && skills.contains(w)) {
+            const Json& sk = skills[w];
+            Json o = Json::object();
+            o["name"] = w;
+            if (sk["target"].truthy()) {
+                if (s->target_id_.empty()) {
+                    return;
+                }
+                o["id"] = json_id_value(s->target_id_);
+            }
+            s->io_.emit("skill", o);
+            if (sk["mp"].is_number()) {
+                s->self_.mp = std::max(0.0, s->self_.mp - sk["mp"].as_number());
+            }
+            Log::Debug("skill %s id=%s\n", w.c_str(), s->target_id_.c_str());
+            s->apply_skill_timeout(w, std::nullopt);
             return;
         }
         Json o = Json::object();
@@ -673,6 +692,93 @@ namespace caracal {
         }
     }
 
+    namespace {
+
+        double skill_duration_ms(const Json& skills, const std::string& name) {
+            const Json& sk = skills[name];
+            if (!sk.is_object()) {
+                return 0;
+            }
+            if (sk["cooldown"].is_number()) {
+                return sk["cooldown"].as_number();
+            }
+            if (sk["reuse_cooldown"].is_number()) {
+                return sk["reuse_cooldown"].as_number();
+            }
+            if (sk["share"].is_string()) {
+                double cd = skills[sk["share"].as_string()]["cooldown"].as_number_opt().value_or(0);
+                double mult = sk["cooldown_multiplier"].as_number_opt().value_or(1);
+                return cd * mult;
+            }
+            return 0;
+        }
+
+    } // namespace
+
+    void GameSession::apply_skill_timeout(const std::string& name, std::optional<double> ms) {
+        const Json& skills = g_["skills"];
+        auto arm = [&](const std::string& skill, std::optional<double> given) {
+            double dur = 0;
+            if (given) {
+                dur = *given;
+            }
+            else if (skills.is_object()) {
+                dur = skill_duration_ms(skills, skill);
+            }
+            if (dur < 0) {
+                dur = 0;
+            }
+            double ready = now_ms() + dur;
+            skill_ready_ms_[skill] = ready;
+            if (skill == "attack") {
+                self_.next_attack_ms = ready;
+            }
+        };
+
+        if (!skills.is_object() || !skills.contains(name)) {
+            if (ms) {
+                arm(name, ms);
+            }
+            return;
+        }
+        const Json& sk = skills[name];
+        std::string shared = sk["share"].is_string() ? sk["share"].as_string() : name;
+        bool shared_group = sk["share"].is_string();
+        if (!shared_group) {
+            for (const auto& [other, def] : skills.as_object()) {
+                if (def["share"].is_string() && def["share"].as_string() == shared) {
+                    shared_group = true;
+                    break;
+                }
+            }
+        }
+        if (shared_group) {
+            arm(shared, ms);
+            for (const auto& [other, def] : skills.as_object()) {
+                if (def["share"].is_string() && def["share"].as_string() == shared) {
+                    arm(other, ms);
+                }
+            }
+            return;
+        }
+        if (sk["cooldown"].is_number() || sk["reuse_cooldown"].is_number() || name == "attack") {
+            arm(name, ms);
+        }
+    }
+
+    bool GameSession::skill_off_cooldown(const std::string& name) const {
+        std::string key = name;
+        const Json& sk = g_["skills"][name];
+        if (sk.is_object() && sk["share"].is_string()) {
+            key = sk["share"].as_string();
+        }
+        auto it = skill_ready_ms_.find(key);
+        if (it == skill_ready_ms_.end()) {
+            return true;
+        }
+        return now_ms() >= it->second;
+    }
+
     void GameSession::handle_event(const SocketIoPacket& p) {
         if (character::is_auth_reject_payload(p.data) || character::is_auth_reject_text(p.event)) {
             auth_fail_ = true;
@@ -780,6 +886,13 @@ namespace caracal {
                 self_.going_y = self_.y;
                 clear_smart();
                 ensure_geo();
+            }
+            return;
+        }
+        if (p.event == "skill_timeout" && p.data.is_object()) {
+            auto name = p.data["name"].as_string_opt();
+            if (name) {
+                apply_skill_timeout(*name, p.data["ms"].as_number_opt());
             }
             return;
         }

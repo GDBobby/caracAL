@@ -8,7 +8,7 @@
 static const CaracalApi* api = nullptr;
 static double last_respawn_ms = 0;
 static double last_loop_ms = 0;
-static const char* mon_type = "bee";
+static const char* mon_type = "poisio";
 
 static void on_load(const CaracalApi* a) {
     api = a;
@@ -72,6 +72,9 @@ static void on_tick(double now_ms) {
         api->change_target(api->ctx, tid);
         double dist = api->simple_distance(api->ctx, target->real_x, target->real_y, me->real_x, me->real_y);
         double range = me->range > 1 ? me->range : 40;
+        if (target->hp > 500 && me->mp > 350 && dist <= range && api->can_use(api->ctx, "quickstab")) {
+            api->use(api->ctx, "quickstab");
+        }
         int in_atk = api->can_attack(api->ctx, tid);
         if (in_atk || dist <= range + 40) {
             //caracal::Log::Debug("attack %s d=%.1f range=%.1f can=%d\n", tid, dist, range, in_atk);
