@@ -63,6 +63,16 @@ std::optional<Json> best_pot_instance(const Json& items, const Json& G,
   return best;
 }
 
+int find_pot_slot(const Json& items, const Json& G, std::string_view kind) {
+  if (!items.is_array()) return -1;
+  const auto& a = items.as_array();
+  for (int i = static_cast<int>(a.size()) - 1; i >= 0; --i) {
+    if (!a[static_cast<std::size_t>(i)].is_object()) continue;
+    if (pot_match(a[static_cast<std::size_t>(i)], G, kind)) return i;
+  }
+  return -1;
+}
+
 Json pot_summary(const Json& items, const Json& G, std::string_view kind) {
   Json out = Json::object();
   out["total"] = 0;

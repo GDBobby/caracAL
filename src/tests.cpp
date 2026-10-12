@@ -11,6 +11,7 @@
 #include "ipc_storage.hpp"
 #include "json.hpp"
 #include "monitoring_util.hpp"
+#include "pathing.hpp"
 #include "plugin_host.hpp"
 #include "realm_rtt.hpp"
 #include "realm_safe_clone.hpp"
@@ -239,6 +240,15 @@ TEST(monitoring_items) {
   G["items"] = Json::object();
   auto hp = caracal::monitoring::best_pot_instance(items, G, "hp");
   CHECK(hp && (*hp)["name"].as_string() == "hpot1");
+  CHECK(caracal::monitoring::find_pot_slot(items, G, "hp") == 0);
+  CHECK(caracal::monitoring::find_pot_slot(items, G, "mp") == -1);
+  items.as_array().push_back(Json(nullptr));
+  Json mp = Json::object();
+  mp["name"] = "mpot0";
+  mp["q"] = 3;
+  items.as_array().push_back(mp);
+  CHECK(caracal::monitoring::find_pot_slot(items, G, "mp") == 2);
+  CHECK(caracal::monitoring::find_pot_slot(items, G, "hp") == 0);
   CHECK(caracal::monitoring::humanize_int(500, 1) == "500");
   CHECK(caracal::monitoring::humanize_int(1500, 1) == "1.5k");
 }
@@ -316,12 +326,100 @@ TEST(entity_distance_and_json) {
   CHECK(e.id == "a");
   CHECK(e.type == "crab");
   CHECK(e.x == 1);
+  auto n = caracal::entity_from_json(
+      Json::parse(R"({"id":4123,"type":"monster","mtype":"crab","x":10,"y":20})"));
+  CHECK(n.id == "4123");
+  CHECK(n.type == "crab");
+  CHECK(caracal::entity_matches_type(n, "crab"));
+  CHECK(!n.moving);
+  auto z = caracal::entity_from_json(Json::parse(R"({"id":1,"x":0,"y":0,"range":0})"));
+  CHECK(z.range == 40);
 }
 
 TEST(data_js_parse) {
   auto g = caracal::try_parse_data_js("var G={\"version\":1,\"maps\":{}};");
   CHECK(g["version"].as_number() == 1);
   CHECK(g["maps"].is_object());
+}
+
+TEST(pathing_walls_and_clamp) {
+  Json node = Json::object();
+  node["min_x"] = -100;
+  node["max_x"] = 100;
+  node["min_y"] = -100;
+  node["max_y"] = 100;
+  Json xs = Json::array();
+  Json wall = Json::array();
+  wall.as_array().push_back(0);
+  wall.as_array().push_back(-20);
+  wall.as_array().push_back(20);
+  xs.as_array().push_back(wall);
+  node["x_lines"] = xs;
+  node["y_lines"] = Json::array();
+  auto geo = caracal::map_geo_from_json(node, "test");
+  CHECK(geo.ok);
+  CHECK(caracal::can_stand(geo, -40, 0));
+  CHECK(!caracal::can_move(geo, -1, 0, 1, 0));
+  CHECK(caracal::can_move(geo, -40, 0, -20, 0));
+  CHECK(!caracal::can_move(geo, -40, 0, 40, 0));
+  CHECK(caracal::can_move(geo, -40, 50, 40, 50));
+  CHECK(!caracal::in_bounds(geo, 200, 0));
+  auto clamped = caracal::clamp_move(geo, -40, 0, 40, 0);
+  CHECK(clamped.has_value());
+  CHECK(clamped->first < 0);
+  CHECK(clamped->first > -40);
+}
+
+TEST(pathing_find_path_around_wall) {
+  Json node = Json::object();
+  node["min_x"] = -100;
+  node["max_x"] = 100;
+  node["min_y"] = -100;
+  node["max_y"] = 100;
+  Json xs = Json::array();
+  Json wall = Json::array();
+  wall.as_array().push_back(0);
+  wall.as_array().push_back(-20);
+  wall.as_array().push_back(20);
+  xs.as_array().push_back(wall);
+  node["x_lines"] = xs;
+  node["y_lines"] = Json::array();
+  auto geo = caracal::map_geo_from_json(node, "test");
+  auto direct = caracal::find_path(geo, -40, 50, 40, 50);
+  CHECK(direct.size() == 1);
+  auto around = caracal::find_path(geo, -40, 0, 40, 0);
+  CHECK(!around.empty());
+  double px = -40, py = 0;
+  bool went_around = false;
+  for (auto [x, y] : around) {
+    CHECK(caracal::can_move(geo, px, py, x, y));
+    if (std::abs(y) > 20) went_around = true;
+    px = x;
+    py = y;
+  }
+  CHECK(went_around);
+  CHECK(std::hypot(around.back().first - 40, around.back().second - 0) < 25);
+}
+
+TEST(pathing_main_bee_wall) {
+  const char* path = "game_files/adventure.land/17665/data.js";
+  if (!fs::exists(path)) return;
+  auto g = caracal::load_g_data(path);
+  auto geo = caracal::map_geo_from_g(g, "main");
+  CHECK(geo.ok);
+  CHECK(!caracal::can_move(geo, 224, 706, 450.4, 705.1));
+  auto around = caracal::find_path(geo, 224, 706, 450.4, 705.1);
+  CHECK(!around.empty());
+  bool left_the_wall = false;
+  for (auto [x, y] : around) {
+    if (x < 224 - 4 || y < 680 || y > 776) left_the_wall = true;
+  }
+  CHECK(left_the_wall);
+  auto slide = caracal::calculate_move(geo, 224, 706, 215.9, 796);
+  auto unstuck = caracal::unstuck_move(geo, 224, 706, 215.9, 796);
+  CHECK(unstuck.has_value());
+  CHECK(std::hypot(unstuck->first - 224, unstuck->second - 706) > 1);
+  (void)slide;
 }
 
 TEST(plugin_load_and_tick) {

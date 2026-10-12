@@ -230,6 +230,14 @@ void WebSocket::connect(std::string_view url, int timeout_ms) {
 
 void WebSocket::send_text(std::string_view msg) { send_frame(msg, 1); }
 
+void WebSocket::send_close() {
+  if (fd_ < 0) return;
+  try {
+    send_frame({}, 8);
+  } catch (...) {
+  }
+}
+
 std::optional<std::string> WebSocket::poll_text(int timeout_ms) {
   auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
   std::string acc;
@@ -267,6 +275,7 @@ std::optional<std::string> WebSocket::poll_text(int timeout_ms) {
 }
 
 void WebSocket::close() {
+  send_close();
   if (ssl_) {
     auto* ssl = static_cast<SSL*>(ssl_);
     SSL_shutdown(ssl);

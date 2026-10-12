@@ -72,7 +72,26 @@ void SocketIo::emit(std::string_view event, const Json& data) {
   ws_.send_text(encode_socket_event(event, data));
 }
 
-void SocketIo::close() { ws_.close(); }
+void SocketIo::disconnect() {
+  if (!ws_.alive()) return;
+  try {
+    ws_.send_text("41");
+  } catch (...) {
+  }
+  try {
+    ws_.send_text("1");
+  } catch (...) {
+  }
+  try {
+    ws_.send_close();
+  } catch (...) {
+  }
+}
+
+void SocketIo::close() {
+  disconnect();
+  ws_.close();
+}
 
 void SocketIo::handle_engine(std::string_view raw, std::optional<SocketIoPacket>& out) {
   if (raw.empty()) return;

@@ -22,6 +22,7 @@ class WebSocket {
 
   void connect(std::string_view url, int timeout_ms = 15000);
   void send_text(std::string_view msg);
+  void send_close();
   void close();
   bool alive() const { return fd_ >= 0; }
 

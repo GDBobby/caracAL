@@ -25,6 +25,8 @@ typedef struct CaracalEntity {
   double real_y;
   double range;
   int moving;
+  double going_x;
+  double going_y;
 } CaracalEntity;
 
 typedef struct CaracalApi {

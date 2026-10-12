@@ -1,0 +1,104 @@
+Language: Cpp
+BasedOnStyle: LLVM
+Standard: Latest
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset: -4
+IndentAccessModifiers: false
+NamespaceIndentation: All
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentPPDirectives: None
+ColumnLimit: 120
+LineEnding: LF
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+QualifierAlignment: Leave
+
+SpaceAfterTemplateKeyword: false
+SpaceBeforeParens: ControlStatements
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeRangeBasedForLoopColon: true
+SpacesInAngles: Never
+SpacesInParens: Never
+SpaceInEmptyBraces: Never
+Cpp11BracedListStyle: true
+
+# Break long parameter lists and braced initializers, and put the closing
+# token on its own line. Leave if/for/while/switch parentheses on one line.
+AlignAfterOpenBracket: Align
+BreakAfterOpenBracketFunction: true
+BreakBeforeCloseBracketFunction: true
+BreakAfterOpenBracketBracedList: true
+BreakBeforeCloseBracketBracedList: true
+BreakAfterOpenBracketIf: false
+BreakBeforeCloseBracketIf: false
+BreakAfterOpenBracketLoop: false
+BreakBeforeCloseBracketLoop: false
+BreakAfterOpenBracketSwitch: false
+BreakBeforeCloseBracketSwitch: false
+BinPackParameters: BinPack
+BinPackArguments: true
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: NextLine
+BreakTemplateDeclarations: Yes
+BreakStringLiterals: false
+BreakInheritanceList: BeforeColon
+
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortLambdasOnASingleLine: All
+AllowShortEnumsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+InsertTrailingCommas: None
+EnumTrailingComma: Leave
+InsertBraces: false
+
+SortIncludes: Never
+SortUsingDeclarations: Never
+IncludeBlocks: Preserve
+FixNamespaceComments: false
+ReflowComments: false
+AlignTrailingComments:
+  Kind: Never
+  OverEmptyLines: 0
+SpacesInLineCommentPrefix:
+  Minimum: 0
+  Maximum: -1
+
+EmptyLineBeforeAccessModifier: Never
+EmptyLineAfterAccessModifier: Never
+MaxEmptyLinesToKeep: 2
+KeepEmptyLines:
+  AtEndOfFile: true
+  AtStartOfBlock: true
+  AtStartOfFile: true
+RemoveParentheses: Leave

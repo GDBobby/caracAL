@@ -45,7 +45,7 @@ void run_one_character(CharacterConnect cfg, Json g, std::atomic<bool>& enabled)
     session.on_connected = [&] { log().info(cfg.cname + " in game"); };
     try {
       session.start(cfg, g);
-      session.run_forever();
+      session.run_forever(&g_stop, &enabled);
       session.stop();
     } catch (const std::exception& e) {
       log().error(cfg.cname + " session error: " + e.what());

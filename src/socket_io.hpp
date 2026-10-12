@@ -26,6 +26,7 @@ class SocketIo {
  public:
   void connect(std::string_view ws_url, int timeout_ms = 15000);
   void emit(std::string_view event, const Json& data = Json(nullptr));
+  void disconnect();
   void close();
   bool alive() const { return ws_.alive(); }
 

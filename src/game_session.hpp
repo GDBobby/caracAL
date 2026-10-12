@@ -2,14 +2,18 @@
 
 #include "entity.hpp"
 #include "json.hpp"
+#include "pathing.hpp"
 #include "plugin_abi.hpp"
 #include "plugin_host.hpp"
 #include "socket_io.hpp"
 
+#include <atomic>
 #include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace caracal {
 
@@ -32,7 +36,7 @@ class GameSession {
 
   void start(const CharacterConnect& cfg, const Json& g = Json(nullptr));
   void stop();
-  void run_forever();
+  void run_forever(std::atomic<bool>* stop_a = nullptr, std::atomic<bool>* stop_b = nullptr);
 
   bool in_game() const { return in_game_; }
 
@@ -59,6 +63,15 @@ class GameSession {
   void apply_self(const Json& data);
   void emit_loaded_and_auth();
   void fill_view(CaracalEntity& out, const Entity& e);
+  void simulate_move(double now_ms);
+  void note_map_index(const Json& data);
+  void ensure_geo();
+  bool safe_move_to(double x, double y, bool may_clamp = false);
+  void stop_in_place();
+  bool resolve_named_dest(const char* dest, double& x, double& y);
+  void start_smart(double x, double y);
+  void continue_smart();
+  void clear_smart();
   Entity* find(const std::string& id);
   const Entity* find(const std::string& id) const;
   double now_ms() const;
@@ -69,10 +82,22 @@ class GameSession {
   SocketIo io_;
   PluginHost plugin_;
   Entity self_;
+  Json items_ = Json::array();
   std::unordered_map<std::string, Entity> monsters_;
   std::unordered_map<std::string, Json> chests_;
   std::string target_id_;
   std::string map_;
+  MapGeo geo_{};
+  struct SmartState {
+    bool active = false;
+    double dest_x = 0;
+    double dest_y = 0;
+    std::vector<std::pair<double, double>> plot;
+    std::size_t i = 0;
+    double fail_until_ms = 0;
+  } smart_{};
+  int map_m_ = 0;
+  double last_sim_ms_ = 0;
   bool in_game_ = false;
   bool running_ = false;
   bool auth_emitted_ = false;
