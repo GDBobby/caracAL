@@ -1,7 +1,7 @@
 #include "http_client.hpp"
 
-#include <algorithm>
-#include <cctype>
+#include "string_util.hpp"
+
 #include <cstring>
 #include <netdb.h>
 #include <openssl/err.h>
@@ -13,13 +13,6 @@
 
 namespace caracal {
     namespace {
-
-        std::string to_lower(std::string s) {
-            for (char& c : s) {
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            }
-            return s;
-        }
 
         struct Fd {
             int fd = -1;
@@ -34,39 +27,6 @@ namespace caracal {
                 return x;
             }
         };
-
-        int connect_tcp(const std::string& host, int port, int timeout_ms) {
-            addrinfo hints{};
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_family = AF_UNSPEC;
-            addrinfo* res = nullptr;
-            int rc = ::getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &res);
-            if (rc != 0) {
-                throw std::runtime_error(std::string("getaddrinfo: ") + gai_strerror(rc));
-            }
-            int fd = -1;
-            for (auto* p = res; p; p = p->ai_next) {
-                fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-                if (fd < 0) {
-                    continue;
-                }
-                timeval tv{};
-                tv.tv_sec = timeout_ms / 1000;
-                tv.tv_usec = (timeout_ms % 1000) * 1000;
-                ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-                ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-                if (::connect(fd, p->ai_addr, p->ai_addrlen) == 0) {
-                    break;
-                }
-                ::close(fd);
-                fd = -1;
-            }
-            ::freeaddrinfo(res);
-            if (fd < 0) {
-                throw std::runtime_error("connect failed: " + host);
-            }
-            return fd;
-        }
 
         void ssl_write_all(SSL* ssl, std::string_view data) {
             std::size_t off = 0;
@@ -201,6 +161,39 @@ namespace caracal {
         }
 
     } // namespace
+
+    int connect_tcp(const std::string& host, int port, int timeout_ms) {
+        addrinfo hints{};
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_family = AF_UNSPEC;
+        addrinfo* res = nullptr;
+        int rc = ::getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &res);
+        if (rc != 0) {
+            throw std::runtime_error(std::string("getaddrinfo: ") + gai_strerror(rc));
+        }
+        int fd = -1;
+        for (auto* p = res; p; p = p->ai_next) {
+            fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+            if (fd < 0) {
+                continue;
+            }
+            timeval tv{};
+            tv.tv_sec = timeout_ms / 1000;
+            tv.tv_usec = (timeout_ms % 1000) * 1000;
+            ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+            ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+            if (::connect(fd, p->ai_addr, p->ai_addrlen) == 0) {
+                break;
+            }
+            ::close(fd);
+            fd = -1;
+        }
+        ::freeaddrinfo(res);
+        if (fd < 0) {
+            throw std::runtime_error("connect failed: " + host);
+        }
+        return fd;
+    }
 
     std::optional<std::string> HttpResponse::header(std::string_view name) const {
         auto all = headers_named(name);

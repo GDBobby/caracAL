@@ -10,7 +10,6 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <netdb.h>
 
 namespace caracal {
     namespace {
@@ -29,39 +28,6 @@ namespace caracal {
                 out.push_back(i + 2 < n ? tbl[triple & 63] : '=');
             }
             return out;
-        }
-
-        int connect_tcp(const std::string& host, int port, int timeout_ms) {
-            addrinfo hints{};
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_family = AF_UNSPEC;
-            addrinfo* res = nullptr;
-            int rc = ::getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &res);
-            if (rc != 0) {
-                throw std::runtime_error(std::string("getaddrinfo: ") + gai_strerror(rc));
-            }
-            int fd = -1;
-            for (auto* p = res; p; p = p->ai_next) {
-                fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-                if (fd < 0) {
-                    continue;
-                }
-                timeval tv{};
-                tv.tv_sec = timeout_ms / 1000;
-                tv.tv_usec = (timeout_ms % 1000) * 1000;
-                ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-                ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-                if (::connect(fd, p->ai_addr, p->ai_addrlen) == 0) {
-                    break;
-                }
-                ::close(fd);
-                fd = -1;
-            }
-            ::freeaddrinfo(res);
-            if (fd < 0) {
-                throw std::runtime_error("connect failed: " + host);
-            }
-            return fd;
         }
 
         void apply_mask(std::uint8_t* data, std::size_t n, const std::uint8_t mask[4]) {

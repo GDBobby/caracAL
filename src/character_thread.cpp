@@ -2,19 +2,12 @@
 
 #include "game_files.hpp"
 #include "html_vars.hpp"
+#include "string_util.hpp"
 
-#include <cctype>
 #include <stdexcept>
 
 namespace caracal::character {
     namespace {
-
-        std::string lower(std::string s) {
-            for (char& c : s) {
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            }
-            return s;
-        }
 
         std::string json_str(const Json& j, const char* key, std::string def = {}) {
             auto v = j[key].as_string_opt();
@@ -54,11 +47,6 @@ namespace caracal::character {
         if (p.script_file.empty()) {
             p.script_file = json_str(a, "script");
         }
-        p.typescript_file = json_str(a, "typescript_file");
-        if (p.typescript_file.empty()) {
-            p.typescript_file = json_str(a, "typescript");
-        }
-        p.enable_map = a["enable_map"].truthy();
         p.track_latest = a["track_latest"].truthy();
         return p;
     }
@@ -68,7 +56,7 @@ namespace caracal::character {
             throw std::runtime_error("realm address missing from servers_and_characters (expected address/addr)");
         }
         std::string host(realm_host);
-        auto low = lower(host);
+        auto low = to_lower(host);
         if (low.starts_with("ws://") || low.starts_with("wss://")) {
             return host;
         }
@@ -107,14 +95,11 @@ namespace caracal::character {
     }
 
     std::string target_script(const ProcessArgs& args) {
-        if (!args.typescript_file.empty()) {
-            return "./TYPECODE.out/" + args.typescript_file;
-        }
         return "./CODE/" + args.script_file;
     }
 
     bool is_auth_reject_text(std::string_view s) {
-        auto t = lower(std::string(s));
+        auto t = to_lower(std::string(s));
         return t.find("authentication_failed") != std::string::npos ||
                t.find("characters_unconfirmed") != std::string::npos ||
                t.find("failed: password_issue") != std::string::npos || t.find("failed: ingame") != std::string::npos ||

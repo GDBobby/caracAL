@@ -27,6 +27,9 @@ namespace caracal {
     };
 
     Url parse_url(std::string_view url);
+
+    // Caller owns the returned socket. Throws if the connection fails.
+    int connect_tcp(const std::string& host, int port, int timeout_ms);
     HttpResponse http_request(
         std::string method,
         std::string_view url,

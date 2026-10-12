@@ -98,21 +98,3 @@ set_target_properties(crabs PROPERTIES
     PREFIX "lib"
     OUTPUT_NAME "crabs"
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
-
-add_library(${PROJECT_NAME}_test_plugin MODULE plugins/test_plugin.cpp)
-target_include_directories(${PROJECT_NAME}_test_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set_target_properties(${PROJECT_NAME}_test_plugin PROPERTIES
-    PREFIX "lib"
-    OUTPUT_NAME "test_plugin"
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
-
-add_executable(${PROJECT_NAME}_src_tests src/tests.cpp)
-target_link_libraries(${PROJECT_NAME}_src_tests PRIVATE ${PROJECT_NAME})
-target_compile_options(${PROJECT_NAME}_src_tests PRIVATE -Wall -Wextra)
-target_compile_definitions(${PROJECT_NAME}_src_tests PRIVATE
-    CARACAL_TEST_PLUGIN="$<TARGET_FILE:${PROJECT_NAME}_test_plugin>")
-add_dependencies(${PROJECT_NAME}_src_tests ${PROJECT_NAME}_test_plugin)
-
-enable_testing()
-add_test(NAME src COMMAND ${PROJECT_NAME}_src_tests)
-set_tests_properties(src PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})

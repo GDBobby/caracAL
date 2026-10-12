@@ -1,5 +1,7 @@
 #include "client_scripts.hpp"
 
+#include "string_util.hpp"
+
 #include <cctype>
 #include <optional>
 #include <unordered_set>
@@ -8,13 +10,6 @@
 
 namespace caracal::client_scripts {
     namespace {
-
-        std::string to_lower(std::string s) {
-            for (char& c : s) {
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            }
-            return s;
-        }
 
         bool starts_with(std::string_view s, std::string_view p) {
             return s.size() >= p.size() && s.substr(0, p.size()) == p;
@@ -33,7 +28,7 @@ namespace caracal::client_scripts {
             return true;
         }
 
-        std::optional<std::string> rewrite_or_skip(std::string src) {
+        std::optional<std::string> rewrite_or_skip(std::string const& src) {
             static const std::vector<std::pair<std::string, std::string>> rewrite = {
                 {"/js/pixi/", "/js/pixi/fake/pixi.min.js"},
                 {"/js/codemirror/", "/js/codemirror/fake/codemirror.js"},

@@ -20,8 +20,6 @@ namespace caracal::character {
         std::optional<int> realm_port;
         std::string version;
         std::string script_file;
-        std::string typescript_file;
-        bool enable_map = false;
         bool track_latest = false;
     };
 

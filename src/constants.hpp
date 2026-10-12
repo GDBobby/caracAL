@@ -14,8 +14,4 @@ namespace caracal::constants {
     inline constexpr auto stale_stat_beat = std::chrono::milliseconds(30'000);
     inline constexpr auto char_watchdog_interval = std::chrono::milliseconds(5'000);
 
-    inline constexpr int privileged_port_ceiling = 1024;
-    inline constexpr int default_web_panel_port_windows = 924;
-    inline constexpr int default_web_panel_port_unix = 1924;
-
 } // namespace caracal::constants

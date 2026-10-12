@@ -1,7 +1,6 @@
 #include "config_util.hpp"
 
 #include "account_info.hpp"
-#include "constants.hpp"
 #include "http_client.hpp"
 #include "Logger.h"
 
@@ -14,26 +13,6 @@
 
 namespace caracal::config {
     namespace fs = std::filesystem;
-
-    int privileged_port_ceiling() {
-        return constants::privileged_port_ceiling;
-    }
-
-    int default_web_panel_port() {
-#ifdef _WIN32
-        return constants::default_web_panel_port_windows;
-#else
-        return constants::default_web_panel_port_unix;
-#endif
-    }
-
-    bool needs_elevated_bind(int port) {
-#ifdef _WIN32
-        return false;
-#else
-        return port > 0 && port < privileged_port_ceiling();
-#endif
-    }
 
     std::optional<std::string> extract_auth_cookie(const std::vector<std::string>& set_cookie_headers) {
         for (const auto& h : set_cookie_headers) {
@@ -85,18 +64,6 @@ namespace caracal::config {
             return s;
         }
 
-        bool prompt_yesno(std::string_view q) {
-            for (;;) {
-                std::string s = prompt_line(std::string(q) + " [y/N] ");
-                if (s.empty() || s == "n" || s == "N" || s == "no") {
-                    return false;
-                }
-                if (s == "y" || s == "Y" || s == "yes") {
-                    return true;
-                }
-            }
-        }
-
     } // namespace
 
     std::optional<std::string> login_success_auth(const Json& data, const std::vector<std::string>& set_cookie) {
@@ -142,7 +109,6 @@ namespace caracal::config {
         conf["base_url"] = "https://adventure.land";
         conf["session"] = "1111111111111111-abc123ABCabc123ABCabc";
         conf["cull_versions"] = true;
-        conf["enable_TYPECODE"] = false;
         conf["log_level"] = "info";
         Json sinks = Json::array();
         Json rotate = Json::array();
@@ -154,39 +120,15 @@ namespace caracal::config {
         rotate.as_array().push_back("4500000");
         sinks.as_array().push_back(rotate);
         conf["log_sinks"] = sinks;
-        Json web = Json::object();
-        web["title"] = "Bot Controller";
-        web["enable_bwi"] = false;
-        web["enable_minimap"] = false;
-        web["expose_CODE"] = false;
-        web["expose_TYPECODE"] = false;
-        web["port"] = default_web_panel_port();
-        conf["web_app"] = web;
         conf["characters"] = Json::object();
         return conf;
     }
 
-    Json make_config(
-        std::string base_url,
-        std::string session,
-        const Json& characters,
-        bool typescript_enabled,
-        bool use_bwi,
-        bool use_minimap,
-        int port,
-        std::string title
-    ) {
+    Json make_config(std::string base_url, std::string session, const Json& characters) {
         Json conf = default_config();
         conf["base_url"] = std::move(base_url);
         conf["session"] = std::move(session);
-        conf["enable_TYPECODE"] = typescript_enabled;
         conf["characters"] = characters;
-        Json web = conf["web_app"];
-        web["title"] = std::move(title);
-        web["enable_bwi"] = use_bwi;
-        web["enable_minimap"] = use_minimap;
-        web["port"] = port;
-        conf["web_app"] = web;
         return conf;
     }
 
@@ -257,25 +199,6 @@ namespace caracal::config {
                 realm = picked;
             }
         }
-        bool ts = prompt_yesno("Enable TypeScript integration?");
-        bool bwi = prompt_yesno("Use the web monitoring panel?");
-        bool mini = false;
-        int port = default_web_panel_port();
-        std::string title = "Bot Controller";
-        if (bwi) {
-            title = prompt_line("Web panel title [Bot Controller]: ");
-            if (title.empty()) {
-                title = "Bot Controller";
-            }
-            mini = prompt_yesno("Enable minimap?");
-            auto ps = prompt_line("Web panel port [" + std::to_string(port) + "]: ");
-            if (!ps.empty()) {
-                port = std::stoi(ps);
-            }
-            if (needs_elevated_bind(port)) {
-                throw std::runtime_error("Ports below 1024 need root on Linux/macOS.");
-            }
-        }
         std::cout << "Enable characters (comma-separated names, empty = none):\n";
         for (const auto& n : names) {
             std::cout << "  " << n << "\n";
@@ -302,15 +225,10 @@ namespace caracal::config {
             c["realm"] = realm;
             c["enabled"] = std::find(enabled.begin(), enabled.end(), n) != enabled.end();
             c["version"] = 0;
-            if (ts) {
-                c["typescript"] = "caracAL/examples/crabs_with_tophats.js";
-            }
-            else {
-                c["script"] = "caracAL/examples/crabs.js";
-            }
+            c["script"] = "caracAL/examples/crabs.js";
             characters[n] = c;
         }
-        auto conf = make_config(base_url, *session, characters, ts, bwi, mini, port, title);
+        auto conf = make_config(base_url, *session, characters);
         write_config(config_path, conf);
         Log::Normal("config file created. lets get started!\n");
         return conf;

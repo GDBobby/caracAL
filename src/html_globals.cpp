@@ -1,5 +1,7 @@
 #include "html_globals.hpp"
 
+#include "string_util.hpp"
+
 #include <cctype>
 #include <regex>
 #include <stdexcept>
@@ -11,13 +13,6 @@ namespace caracal {
         bool contains_page_globals_marker(std::string_view s) {
             static const std::regex re(R"(var\s+inside\s*=\s*["']login["'])");
             return std::regex_search(s.begin(), s.end(), re);
-        }
-
-        std::string to_lower(std::string s) {
-            for (char& c : s) {
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            }
-            return s;
         }
 
     } // namespace

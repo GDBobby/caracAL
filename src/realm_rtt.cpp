@@ -1,44 +1,23 @@
 #include "realm_rtt.hpp"
 
+#include "http_client.hpp"
+#include "string_util.hpp"
+
 #include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstring>
-#include <netdb.h>
 #include <openssl/ssl.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 namespace caracal {
     namespace {
 
         int connect_timed(const std::string& host, int port, int timeout_ms, bool tls) {
-            addrinfo hints{};
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_family = AF_UNSPEC;
-            addrinfo* res = nullptr;
-            if (::getaddrinfo(host.c_str(), std::to_string(port).c_str(), &hints, &res) != 0) {
-                return -1;
-            }
             int fd = -1;
-            for (auto* p = res; p; p = p->ai_next) {
-                fd = ::socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-                if (fd < 0) {
-                    continue;
-                }
-                timeval tv{};
-                tv.tv_sec = timeout_ms / 1000;
-                tv.tv_usec = (timeout_ms % 1000) * 1000;
-                ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-                ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-                if (::connect(fd, p->ai_addr, p->ai_addrlen) == 0) {
-                    break;
-                }
-                ::close(fd);
-                fd = -1;
-            }
-            ::freeaddrinfo(res);
-            if (fd < 0) {
+            try {
+                fd = connect_tcp(host, port, timeout_ms);
+            } catch (...) {
                 return -1;
             }
             if (!tls) {
@@ -79,10 +58,7 @@ namespace caracal {
         if (raw.empty()) {
             return out;
         }
-        auto lower_start = raw;
-        for (auto& c : lower_start) {
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        }
+        auto lower_start = to_lower(raw);
         if (lower_start.starts_with("ws://")) {
             raw = raw.substr(5);
         }
