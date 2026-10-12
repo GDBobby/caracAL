@@ -5,6 +5,6 @@
 
 namespace caracal {
 
-std::string extract_page_globals(std::string_view html);
+    std::string extract_page_globals(std::string_view html);
 
 }

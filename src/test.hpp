@@ -8,37 +8,36 @@
 
 namespace caracal::test {
 
-struct Case {
-  const char* name;
-  void (*fn)();
-};
+    struct Case {
+        const char* name;
+        void (*fn)();
+    };
 
-inline std::vector<Case>& registry() {
-  static std::vector<Case> cases;
-  return cases;
-}
+    inline std::vector<Case>& registry() {
+        static std::vector<Case> cases;
+        return cases;
+    }
 
-struct Register {
-  Register(const char* name, void (*fn)()) { registry().push_back({name, fn}); }
-};
+    struct Register {
+        Register(const char* name, void (*fn)()) { registry().push_back({name, fn}); }
+    };
 
-inline int failures = 0;
-inline int checks = 0;
+    inline int failures = 0;
+    inline int checks = 0;
 
-inline void check(bool cond, const char* expr, const char* file, int line) {
-  ++checks;
-  if (!cond) {
-    ++failures;
-    std::cerr << "FAIL " << file << ":" << line << " " << expr << "\n";
-  }
-}
+    inline void check(bool cond, const char* expr, const char* file, int line) {
+        ++checks;
+        if (!cond) {
+            ++failures;
+            std::cerr << "FAIL " << file << ":" << line << " " << expr << "\n";
+        }
+    }
 
-}  // namespace caracal::test
+} // namespace caracal::test
 
-#define TEST(name)                                          \
-  static void name();                                       \
-  static ::caracal::test::Register reg_##name(#name, name); \
-  static void name()
+#define TEST(name)                                                                                                     \
+    static void name();                                                                                                \
+    static ::caracal::test::Register reg_##name(#name, name);                                                          \
+    static void name()
 
-#define CHECK(cond) \
-  ::caracal::test::check(static_cast<bool>(cond), #cond, __FILE__, __LINE__)
+#define CHECK(cond) ::caracal::test::check(static_cast<bool>(cond), #cond, __FILE__, __LINE__)

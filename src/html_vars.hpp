@@ -4,7 +4,7 @@
 
 namespace caracal {
 
-inline constexpr std::string_view html_vars_source = R"AL(
+    inline constexpr std::string_view html_vars_source = R"AL(
 var inside = "login";
 var user_id = "",
   user_auth = "";
@@ -118,4 +118,4 @@ if (typeof create_editor !== "function") {
 code_logic();
 )AL";
 
-}  // namespace caracal
+} // namespace caracal

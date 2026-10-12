@@ -4,9 +4,9 @@
 
 namespace caracal {
 
-// Adventure Land clone() overlay for a JS game VM. Kept as source text because
-// the official client still evaluates JavaScript; this is data, not a host language.
-inline constexpr std::string_view realm_safe_clone_overlay = R"JS(
+    // Adventure Land clone() overlay for a JS game VM. Kept as source text because
+    // the official client still evaluates JavaScript; this is data, not a host language.
+    inline constexpr std::string_view realm_safe_clone_overlay = R"JS(
 (function () {
   function caracAL_tag(value) {
     return Object.prototype.toString.call(value);
@@ -71,4 +71,4 @@ inline constexpr std::string_view realm_safe_clone_overlay = R"JS(
 })();
 )JS";
 
-}  // namespace caracal
+} // namespace caracal

@@ -7,6 +7,6 @@
 
 namespace caracal {
 
-int run_coordinator(const std::string& config_path);
+    int run_coordinator(const std::string& config_path);
 
-}  // namespace caracal
+} // namespace caracal

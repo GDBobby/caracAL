@@ -27,7 +27,7 @@ BraceWrapping:
   AfterStruct: false
   AfterUnion: false
   BeforeCatch: false
-  BeforeElse: false
+  BeforeElse: true
   BeforeLambdaBody: false
   BeforeWhile: false
   IndentBraces: false
@@ -64,10 +64,14 @@ BreakAfterOpenBracketLoop: false
 BreakBeforeCloseBracketLoop: false
 BreakAfterOpenBracketSwitch: false
 BreakBeforeCloseBracketSwitch: false
-BinPackParameters: BinPack
-BinPackArguments: true
+# If a list fits in ColumnLimit, keep it on one line. Otherwise one item per line.
+BinPackParameters: OnePerLine
+BinPackArguments: false
+BinPackLongBracedList: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
 BreakConstructorInitializers: BeforeColon
-PackConstructorInitializers: NextLine
+PackConstructorInitializers: CurrentLine
 BreakTemplateDeclarations: Yes
 BreakStringLiterals: false
 BreakInheritanceList: BeforeColon
@@ -80,7 +84,7 @@ AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 InsertTrailingCommas: None
 EnumTrailingComma: Leave
-InsertBraces: false
+InsertBraces: true
 
 SortIncludes: Never
 SortUsingDeclarations: Never

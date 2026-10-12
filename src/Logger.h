@@ -3,9 +3,9 @@
 #include <string_view>
 
 
-namespace EWE{
+namespace EWE {
 
-    enum class LogType{
+    enum class LogType {
         None, //dont print anything directly to this
         Sanity, //lowest level, use in situations where it SHOULD work
         Normal, //for stuff like "device was created"
@@ -14,7 +14,7 @@ namespace EWE{
         Error, //something already broke
     };
 
-    struct Log{
+    struct Log {
 
         inline static LogType Minimum = LogType::Sanity;
 
